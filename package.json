@@ -1,0 +1,22 @@
+{
+  "name": "chaosmesh-sentinel-observability",
+  "version": "1.0.0",
+  "description": "Enterprise SRE Chaos Engineering Mesh & Distributed Tracing Observability Engine",
+  "type": "module",
+  "main": "src/mesh/service-mesh.js",
+  "scripts": {
+    "test": "node tests/chaosmesh.test.js",
+    "start": "node src/mesh/service-mesh.js"
+  },
+  "keywords": [
+    "chaos-engineering",
+    "circuit-breaker",
+    "sre",
+    "observability",
+    "distributed-tracing",
+    "service-mesh",
+    "resilience"
+  ],
+  "author": "أ. طارق ابوعشي",
+  "license": "MIT"
+}

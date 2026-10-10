@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChaosMesh Sentinel — SRE Chaos Engineering & Distributed Observability Mesh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: rgba(18, 24, 38, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --status-closed: #10b981;
+      --status-open: #ef4444;
+      --status-half: #f59e0b;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      background-image: radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+                        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 24px 36px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(9, 13, 22, 0.9);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      font-size: 0.72rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .author-pill {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fcd34d;
+      background: rgba(252, 211, 77, 0.1);
+      border: 1px solid rgba(252, 211, 77, 0.25);
+      padding: 6px 16px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    main {
+      flex: 1;
+      padding: 28px 36px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    /* Mesh Topology Visualizer */
+    .topology-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      background: rgba(0,0,0,0.3);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    .node-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    .node-card.active {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.25);
+    }
+
+    .node-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .badge-state {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-CLOSED { background: rgba(16, 185, 129, 0.2); color: var(--status-closed); border: 1px solid var(--status-closed); }
+    .badge-OPEN { background: rgba(239, 68, 68, 0.2); color: var(--status-open); border: 1px solid var(--status-open); }
+    .badge-HALF_OPEN { background: rgba(245, 158, 11, 0.2); color: var(--status-half); border: 1px solid var(--status-half); }
+
+    /* Controls */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    select, input {
+      width: 100%;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-primary { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+    .btn-danger:hover { filter: brightness(1.15); }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: rgba(255,255,255,0.05); }
+
+    /* Waterfall Timeline */
+    .waterfall-box {
+      background: rgba(0,0,0,0.4);
+      border-radius: 12px;
+      padding: 14px;
+      max-height: 380px;
+      overflow-y: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+    }
+
+    .span-bar-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 65px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .span-bar-fill {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+    }
+    .span-bar-fill.error {
+      background: linear-gradient(90deg, var(--status-open), #b91c1c);
+    }
+
+    /* Terminal logs */
+    .terminal-logs {
+      background: #050811;
+      border-radius: 10px;
+      padding: 12px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: #38bdf8;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-title">
+      <span>🛡️ ChaosMesh Sentinel</span>
+      <span class="brand-badge">SRE Chaos Mesh & Observability</span>
+    </div>
+    <div class="author-pill">
+      🏛️ أ. طارق ابوعشي — استشاري ومعماري هندسة البرمجيات والأنظمة الموزعة
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Mesh Topology, Chaos Controls, Simulator -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      
+      <!-- Topology Overview -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>🌐 Service Mesh Active Topology</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Sidecar Proxy Instrumented</span>
+        </div>
+        <div class="topology-container">
+          <div class="node-card" id="card-gateway">
+            <div class="node-title">API Gateway</div>
+            <div class="badge-state badge-CLOSED">ONLINE</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">Ingress Router</div>
+          </div>
+          <div class="node-card" id="card-order">
+            <div class="node-title">Order Service</div>
+            <div class="badge-state badge-CLOSED">HEALTHY</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">Saga Coordinator</div>
+          </div>
+          <div class="node-card" id="card-inventory">
+            <div class="node-title">Inventory Breaker</div>
+            <div class="badge-state badge-CLOSED" id="breaker-inventory">CLOSED</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;" id="stat-inventory">0 Fails</div>
+          </div>
+          <div class="node-card" id="card-payment">
+            <div class="node-title">Payment Breaker</div>
+            <div class="badge-state badge-CLOSED" id="breaker-payment">CLOSED</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;" id="stat-payment">0 Fails</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chaos Engineering Studio -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>⚡ Chaos Injection Studio</span>
+          <button class="btn btn-outline" style="padding:4px 10px; font-size:0.75rem;" onclick="clearAllChaos()">Clear Faults</button>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Target Downstream Service</label>
+            <select id="chaosTarget">
+              <option value="payment-service">Payment Service</option>
+              <option value="inventory-service">Inventory Service</option>
+              <option value="fraud-service">Fraud Service</option>
+            </select>
+          </div>
+          <div>
+            <label>Fault Injection Type</label>
+            <select id="faultType" onchange="toggleFaultParams()">
+              <option value="ERROR">Simulated Outage / HTTP 500</option>
+              <option value="LATENCY">High Latency Jitter</option>
+              <option value="BLACKHOLE">Network Blackhole (Partition)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" id="faultParams">
+          <div>
+            <label>Error Rate (Probability): <span id="lblErrorRate">100%</span></label>
+            <input type="range" id="errorRate" min="10" max="100" value="100" oninput="document.getElementById('lblErrorRate').innerText = this.value + '%'">
+          </div>
+          <div>
+            <label>Injected Latency: <span id="lblLatency">350ms</span></label>
+            <input type="range" id="latencyMs" min="50" max="1000" step="50" value="350" oninput="document.getElementById('lblLatency').innerText = this.value + 'ms'">
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-danger" style="flex:1;" onclick="applyChaos()">🔥 Inject Chaos Experiment</button>
+          <button class="btn btn-outline" onclick="resetBreakers()">🔄 Reset All Breakers</button>
+        </div>
+      </div>
+
+      <!-- Traffic Generator -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>🚀 Transaction Traffic Generator</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Distributed Checkout Flow</span>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <button class="btn btn-primary" style="flex:1;" onclick="triggerSingleCheckout()">Send Single Transaction</button>
+          <button class="btn btn-outline" onclick="triggerBurst(5)">⚡ Send 5x Burst</button>
+        </div>
+        <div class="terminal-logs" id="terminalLogs">
+[CHAOSMESH] Sentinel Observability Console Ready.
+[CHAOSMESH] Microservice cluster initialized with Circuit Breakers & Distributed Tracers.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Distributed Tracing Waterfall & Live Telemetry -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      
+      <div class="panel" style="flex:1;">
+        <div class="panel-title">
+          <span>📊 Distributed Tracing Flame Graph</span>
+          <span style="font-size:0.78rem; color:var(--accent-cyan);" id="traceIdDisplay">W3C Context</span>
+        </div>
+        <div class="waterfall-box" id="waterfallTimeline">
+          <div style="color:var(--text-muted); text-align:center; padding:40px 0;">
+            No transactions recorded yet.<br>Click "Send Single Transaction" to capture distributed trace waterfall.
+          </div>
+        </div>
+      </div>
+
+      <!-- Telemetry Counters -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>📈 SRE Resilience Telemetry</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; text-align:center;">
+          <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:10px;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">Total Ingress</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--accent-cyan);" id="counterTotal">0</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:10px;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">Success Rate</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--status-closed);" id="counterSuccess">100%</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:10px;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">Fast-Failed Rejections</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--status-open);" id="counterRejected">0</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    ChaosMesh Sentinel Observability Platform &copy; 2026 — Designed & Built by <strong>أ. طارق ابوعشي</strong>
+  </footer>
+
+  <script>
+    // In-browser mock engine matching Node.js backend
+    const breakers = {
+      'payment-service': { state: 'CLOSED', failures: 0, threshold: 3, recoveryMs: 4000, lastFail: 0, rejected: 0 },
+      'inventory-service': { state: 'CLOSED', failures: 0, threshold: 3, recoveryMs: 4000, lastFail: 0, rejected: 0 },
+      'fraud-service': { state: 'CLOSED', failures: 0, threshold: 2, recoveryMs: 3000, lastFail: 0, rejected: 0 }
+    };
+
+    const activeChaos = {};
+    let totalRequests = 0;
+    let successfulRequests = 0;
+    let rejectedRequests = 0;
+
+    function log(msg) {
+      const box = document.getElementById('terminalLogs');
+      const time = new Date().toLocaleTimeString();
+      box.innerHTML += `\n[${time}] ${msg}`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function checkBreakerState(service) {
+      const b = breakers[service];
+      if (b.state === 'OPEN' && (Date.now() - b.lastFail >= b.recoveryMs)) {
+        b.state = 'HALF_OPEN';
+        log(`[RESILIENCE] ${service} Breaker probe timeout expired: Transitioning OPEN -> HALF_OPEN`);
+      }
+      return b.state;
+    }
+
+    function updateUI() {
+      for (const [srv, b] of Object.entries(breakers)) {
+        checkBreakerState(srv);
+        const badge = document.getElementById(`breaker-${srv.split('-')[0]}`);
+        const stat = document.getElementById(`stat-${srv.split('-')[0]}`);
+        if (badge) {
+          badge.className = `badge-state badge-${b.state}`;
+          badge.innerText = b.state;
+        }
+        if (stat) {
+          stat.innerText = `${b.failures} Fails (${b.state})`;
+        }
+      }
+
+      document.getElementById('counterTotal').innerText = totalRequests;
+      document.getElementById('counterRejected').innerText = rejectedRequests;
+      const rate = totalRequests > 0 ? Math.round((successfulRequests / totalRequests) * 100) : 100;
+      document.getElementById('counterSuccess').innerText = `${rate}%`;
+    }
+
+    function applyChaos() {
+      const target = document.getElementById('chaosTarget').value;
+      const type = document.getElementById('faultType').value;
+      const rate = parseFloat(document.getElementById('errorRate').value) / 100;
+      const latency = parseInt(document.getElementById('latencyMs').value);
+
+      activeChaos[target] = { type, rate, latency };
+      log(`[CHAOS] Injected ${type} fault into ${target} (rate: ${(rate*100).toFixed(0)}%, latency: ${latency}ms)`);
+    }
+
+    function clearAllChaos() {
+      for (const k in activeChaos) delete activeChaos[k];
+      log(`[CHAOS] All active chaos rules revoked.`);
+    }
+
+    function resetBreakers() {
+      for (const [_, b] of Object.entries(breakers)) {
+        b.state = 'CLOSED';
+        b.failures = 0;
+      }
+      updateUI();
+      log(`[RESILIENCE] All Circuit Breakers manually RESET to CLOSED.`);
+    }
+
+    async function triggerSingleCheckout() {
+      totalRequests++;
+      const orderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+      const traceId = Math.random().toString(16).substring(2, 18);
+      document.getElementById('traceIdDisplay').innerText = `Trace: ${traceId}`;
+      log(`[GATEWAY] Received POST /checkout (order: ${orderId})`);
+
+      const spans = [];
+      const t0 = performance.now();
+
+      // Gateway Span
+      spans.push({ name: 'api-gateway', service: 'Gateway', duration: 15, status: 'OK' });
+
+      // Order Service Span
+      spans.push({ name: 'order-service', service: 'Order Coordinator', duration: 35, status: 'OK' });
+
+      // Fraud Check Span
+      spans.push({ name: 'fraud-service', service: 'Fraud Assessment', duration: 25, status: 'OK' });
+
+      // Inventory Breaker Check
+      let inventoryFailed = false;
+      const invState = checkBreakerState('inventory-service');
+      if (invState === 'OPEN') {
+        rejectedRequests++;
+        log(`[CIRCUIT-BREAKER] Fast-failed inventory-service (Circuit is OPEN)`);
+        spans.push({ name: 'inventory-service', service: 'Inventory Service', duration: 2, status: 'FAST_FAIL' });
+        inventoryFailed = true;
+      } else {
+        const chaos = activeChaos['inventory-service'];
+        const delay = chaos && chaos.type === 'LATENCY' ? chaos.latency : 20;
+        await new Promise(r => setTimeout(r, Math.min(delay, 200)));
+
+        if (chaos && (chaos.type === 'ERROR' || chaos.type === 'BLACKHOLE')) {
+          breakers['inventory-service'].failures++;
+          if (breakers['inventory-service'].failures >= breakers['inventory-service'].threshold) {
+            breakers['inventory-service'].state = 'OPEN';
+            breakers['inventory-service'].lastFail = Date.now();
+            log(`[CIRCUIT-BREAKER] Inventory breaker TRIPPED -> OPEN (Failure limit exceeded)`);
+          }
+          spans.push({ name: 'inventory-service', service: 'Inventory Service', duration: delay, status: 'ERROR' });
+          inventoryFailed = true;
+        } else {
+          spans.push({ name: 'inventory-service', service: 'Inventory Service', duration: delay, status: 'OK' });
+        }
+      }
+
+      // Payment Breaker Check (if inventory succeeded)
+      let paymentFailed = false;
+      if (!inventoryFailed) {
+        const payState = checkBreakerState('payment-service');
+        if (payState === 'OPEN') {
+          rejectedRequests++;
+          log(`[CIRCUIT-BREAKER] Fast-failed payment-service (Circuit is OPEN)`);
+          spans.push({ name: 'payment-service', service: 'Payment Service', duration: 2, status: 'FAST_FAIL' });
+          paymentFailed = true;
+        } else {
+          const chaos = activeChaos['payment-service'];
+          const delay = chaos && chaos.type === 'LATENCY' ? chaos.latency : 30;
+          await new Promise(r => setTimeout(r, Math.min(delay, 200)));
+
+          if (chaos && (chaos.type === 'ERROR' || chaos.type === 'BLACKHOLE')) {
+            breakers['payment-service'].failures++;
+            if (breakers['payment-service'].failures >= breakers['payment-service'].threshold) {
+              breakers['payment-service'].state = 'OPEN';
+              breakers['payment-service'].lastFail = Date.now();
+              log(`[CIRCUIT-BREAKER] Payment breaker TRIPPED -> OPEN (Critical Failure)`);
+            }
+            spans.push({ name: 'payment-service', service: 'Payment Service', duration: delay, status: 'ERROR' });
+            paymentFailed = true;
+          } else {
+            spans.push({ name: 'payment-service', service: 'Payment Service', duration: delay, status: 'OK' });
+          }
+        }
+      }
+
+      const totalTime = Math.round(performance.now() - t0);
+      if (!inventoryFailed && !paymentFailed) {
+        successfulRequests++;
+        log(`[GATEWAY] Checkout ${orderId} SUCCESS in ${totalTime}ms`);
+      } else {
+        log(`[GATEWAY] Checkout ${orderId} REJECTED/FAILED in ${totalTime}ms`);
+      }
+
+      renderWaterfall(spans);
+      updateUI();
+    }
+
+    async function triggerBurst(count) {
+      for (let i = 0; i < count; i++) {
+        await triggerSingleCheckout();
+        await new Promise(r => setTimeout(r, 120));
+      }
+    }
+
+    function renderWaterfall(spans) {
+      const container = document.getElementById('waterfallTimeline');
+      let html = '';
+      const maxDuration = Math.max(...spans.map(s => s.duration), 50);
+
+      spans.forEach(span => {
+        const percent = Math.max(10, Math.round((span.duration / maxDuration) * 100));
+        const isErr = span.status === 'ERROR' || span.status === 'FAST_FAIL';
+        html += `
+          <div class="span-bar-row">
+            <div><strong>${span.name}</strong><br><span style="color:var(--text-muted);font-size:0.7rem;">${span.status}</span></div>
+            <div style="background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
+              <div class="span-bar-fill ${isErr ? 'error' : ''}" style="width: ${percent}%;"></div>
+            </div>
+            <div style="text-align:right; font-weight:600;">${span.duration}ms</div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function toggleFaultParams() {}
+    setInterval(updateUI, 1000);
+  </script>
+</body>
+</html>
